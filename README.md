@@ -27,11 +27,20 @@ Local prototyping environment: Python/Flask web server + SQLite database. No Doc
 
 ## Tests
 
-Install dev dependencies and run the pytest suite (uses Flask's test client against a temporary SQLite file, not `instance/radiocalico.db`):
+Install dev dependencies and run the suite from the terminal:
 ```
+.venv\Scripts\activate
 pip install -r requirements-dev.txt
 pytest
 ```
+Or without activating the venv first: `.venv\Scripts\python.exe -m pytest -v` from the repo root.
+
+`test_app.py` covers `app.py` using Flask's test client, each test against its own temporary SQLite file (never `instance/radiocalico.db`):
+
+- `test_index_returns_ok` — hits `/` and checks the exact JSON body.
+- `test_health_db_returns_ok_with_timestamp` — hits `/health/db` once and checks it returns `status: ok`, a `dbTime`, and `totalChecks == 1`.
+- `test_health_db_increments_across_requests` — hits `/health/db` twice and checks the count goes 1 → 2, proving state actually persists in SQLite across requests.
+- `test_health_db_reports_error_for_unwritable_path` — points the DB path at a nonexistent directory and checks the route returns a 500 with `status: error`, proving the error-handling branch actually triggers.
 
 ## Notes
 
