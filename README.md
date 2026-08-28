@@ -11,7 +11,12 @@ Local prototyping environment: Python/Flask web server + SQLite database. No Doc
 1. Create and activate a virtual environment:
    ```
    python -m venv .venv
+
+   # PowerShell / cmd.exe
    .venv\Scripts\activate
+
+   # Git Bash
+   source .venv/Scripts/activate
    ```
 2. Install dependencies:
    ```
@@ -29,7 +34,12 @@ Local prototyping environment: Python/Flask web server + SQLite database. No Doc
 
 Install dev dependencies and run the suite from the terminal:
 ```
+# PowerShell / cmd.exe
 .venv\Scripts\activate
+
+# Git Bash
+source .venv/Scripts/activate
+
 pip install -r requirements-dev.txt
 pytest
 ```
