@@ -27,8 +27,8 @@ Local prototyping environment: Python/Flask web server + SQLite database. No Doc
    python app.py
    ```
 4. Verify:
-   - `http://localhost:3000/` — web server health check
-   - `http://localhost:3000/health/db` — confirms the app can read/write the SQLite database
+   - `http://localhost:3000/` — shows the app: the repo name as the title, the tech stack as a caption, a form to add a user (name + email), and the current list of users (auto-creates the `users` table on first load)
+   - `http://localhost:3000/health/db` — a separate JSON endpoint confirming the app can read/write the SQLite database
 
 ## Tests
 
@@ -47,7 +47,9 @@ Or without activating the venv first: `.venv\Scripts\python.exe -m pytest -v` fr
 
 `test_app.py` covers `app.py` using Flask's test client, each test against its own temporary SQLite file (never `instance/radiocalico.db`):
 
-- `test_index_returns_ok` — hits `/` and checks the exact JSON body.
+- `test_index_shows_title_and_tech_stack` — hits `/` and checks the page title, tech-stack caption, and empty-state message.
+- `test_add_user_appears_in_list` — posts a new user to `/users`, follows up with a `GET /`, and checks the user's name and email now appear in the list.
+- `test_add_user_requires_name_and_email` — posts with a blank name and checks the user is not added.
 - `test_health_db_returns_ok_with_timestamp` — hits `/health/db` once and checks it returns `status: ok`, a `dbTime`, and `totalChecks == 1`.
 - `test_health_db_increments_across_requests` — hits `/health/db` twice and checks the count goes 1 → 2, proving state actually persists in SQLite across requests.
 - `test_health_db_reports_error_for_unwritable_path` — points the DB path at a nonexistent directory and checks the route returns a 500 with `status: error`, proving the error-handling branch actually triggers.
