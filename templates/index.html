@@ -2,46 +2,283 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>{{ repo_name }}</title>
+  <title>Radio Calico</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Open+Sans:wght@400&display=swap" rel="stylesheet">
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 3rem auto; padding: 0 1rem; color: #1a1a1a; }
-    h1 { margin-bottom: 0.25rem; }
-    .caption { color: #666; margin-top: 0; margin-bottom: 2rem; }
-    form { display: flex; gap: 0.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
-    form input { flex: 1; padding: 0.5rem; font-size: 1rem; min-width: 150px; }
-    form button { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #ddd; }
-    .empty { color: #666; font-style: italic; }
+    :root {
+      --mint: #D8F2D5;
+      --forest: #1F4E23;
+      --teal: #38A29D;
+      --orange: #EFA63C;
+      --charcoal: #231F20;
+      --cream: #F5EADA;
+      --white: #FFFFFF;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--charcoal);
+      background: var(--white);
+    }
+    h1, h2, h3 { font-family: "Montserrat", "Open Sans", sans-serif; margin: 0; }
+
+    nav.header {
+      background: var(--teal);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    nav.header img { height: 40px; width: 40px; }
+    nav.header span { color: var(--white); font-size: 1.5rem; font-weight: 700; }
+
+    .identity {
+      background: var(--cream);
+      padding: 8px 24px;
+      text-align: center;
+      font-size: 0.875rem;
+    }
+    .identity form { display: inline-flex; gap: 8px; align-items: center; }
+    .identity select { padding: 0.4rem; border: 1px solid #CCC; border-radius: 4px; }
+    .identity button {
+      background: var(--forest); color: var(--white); border: none; border-radius: 4px;
+      padding: 0.4rem 0.9rem; cursor: pointer; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em;
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 64px 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 700px) {
+      main { grid-template-columns: 1fr; }
+    }
+    .art {
+      width: 100%;
+      aspect-ratio: 1;
+      background: var(--mint);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--forest);
+      font-size: 0.875rem;
+    }
+    .now-playing h2 { color: var(--forest); font-size: 2.25rem; font-weight: 600; margin-bottom: 8px; }
+    .now-playing h3 { color: var(--forest); font-size: 1.5rem; font-weight: 500; margin-bottom: 16px; }
+    .now-playing .album { margin-bottom: 16px; }
+    .now-playing .quality { font-style: italic; color: #555; font-size: 0.875rem; line-height: 1.6; }
+
+    .rating { margin: 24px 0; display: flex; align-items: center; gap: 8px; }
+    .rating button {
+      border: none; background: none; font-size: 1.25rem; cursor: pointer;
+      min-width: 40px; min-height: 40px; border-radius: 50%;
+    }
+    .rating button.selected { background: var(--mint); }
+    .rating button:disabled { cursor: not-allowed; opacity: 0.4; }
+    .rating .hint { font-size: 0.8125rem; color: #666; }
+
+    .player {
+      background: var(--charcoal);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      color: var(--white);
+    }
+    .player button.play-pause {
+      background: var(--mint); color: var(--forest); border: none; border-radius: 50%;
+      width: 40px; height: 40px; min-width: 40px; cursor: pointer; font-size: 1rem;
+    }
+    .player .time { font-size: 0.875rem; white-space: nowrap; }
+    .player .volume { display: flex; align-items: center; gap: 8px; flex: 1; }
+    .player input[type="range"] {
+      -webkit-appearance: none; appearance: none; flex: 1; height: 4px; background: #555; border-radius: 2px;
+    }
+    .player input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--teal); cursor: pointer;
+    }
+    .player input[type="range"]::-moz-range-thumb {
+      width: 14px; height: 14px; border-radius: 50%; background: var(--teal); border: none; cursor: pointer;
+    }
+    .unsupported { color: var(--orange); font-size: 0.8125rem; margin-top: 8px; }
+
+    .previous { background: var(--mint); padding: 48px 24px; }
+    .previous-inner { max-width: 1200px; margin: 0 auto; }
+    .previous h3 { color: var(--forest); margin-bottom: 16px; }
+    .previous ul { list-style: none; margin: 0; padding: 0; }
+    .previous li { padding: 4px 0; }
+    .previous .title { font-style: italic; }
+
+    footer {
+      background: var(--cream);
+      color: var(--forest);
+      text-align: center;
+      padding: 32px 24px;
+      font-size: 0.875rem;
+    }
+    footer .tagline { margin-bottom: 8px; }
   </style>
 </head>
 <body>
-  <h1>{{ repo_name }}</h1>
-  <p class="caption">{{ tech_stack }}</p>
+  <nav class="header">
+    <img src="{{ url_for('static', filename='RadioCalicoLogoTM.png') }}" alt="Radio Calico logo">
+    <span>Radio Calico</span>
+  </nav>
 
-  <form method="post" action="{{ url_for('add_user') }}">
-    <input type="text" name="name" placeholder="Name" required>
-    <input type="email" name="email" placeholder="Email" required>
-    <button type="submit">Add User</button>
-  </form>
+  <div class="identity">
+    {% if current_user %}
+      Listening as <strong>{{ current_user["name"] }}</strong> —
+      <form method="post" action="{{ url_for('whoami') }}" style="display: inline">
+        <select name="user_id" onchange="this.form.submit()">
+          {% for u in users %}
+          <option value="{{ u['id'] }}" {% if u['id'] == current_user['id'] %}selected{% endif %}>{{ u["name"] }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    {% elif users %}
+      <form method="post" action="{{ url_for('whoami') }}">
+        Listening as:
+        <select name="user_id">
+          {% for u in users %}
+          <option value="{{ u['id'] }}">{{ u["name"] }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">That's Me</button>
+      </form>
+    {% else %}
+      No users yet — <a href="{{ url_for('demo') }}">add one on the demo page</a> to rate tracks.
+    {% endif %}
+  </div>
 
-  {% if users %}
-  <table>
-    <thead>
-      <tr><th>Name</th><th>Email</th><th>Created On</th></tr>
-    </thead>
-    <tbody>
-      {% for user in users %}
-      <tr>
-        <td>{{ user["name"] }}</td>
-        <td>{{ user["email"] }}</td>
-        <td>{{ user["created_at"] }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p class="empty">No users yet.</p>
-  {% endif %}
+  <main>
+    <div class="art">Album Art</div>
+    <div class="now-playing">
+      {% if now_playing %}
+      <h2>{{ now_playing["artist"] }}</h2>
+      <h3>{{ now_playing["title"] }}</h3>
+      {% if now_playing["album"] %}<p class="album">{{ now_playing["album"] }}</p>{% endif %}
+      <p class="quality">
+        {% if now_playing["source_quality"] %}Source quality: {{ now_playing["source_quality"] }}<br>{% endif %}
+        {% if now_playing["stream_quality"] %}Stream quality: {{ now_playing["stream_quality"] }}{% endif %}
+      </p>
+
+      <div class="rating">
+        <span>Rate this track:</span>
+        <form method="post" action="{{ url_for('rate_track', track_id=now_playing['id']) }}">
+          <button type="submit" name="direction" value="up"
+            class="{{ 'selected' if user_rating == 'up' }}" {% if not current_user %}disabled{% endif %}>👍 {{ rating_counts.up }}</button>
+        </form>
+        <form method="post" action="{{ url_for('rate_track', track_id=now_playing['id']) }}">
+          <button type="submit" name="direction" value="down"
+            class="{{ 'selected' if user_rating == 'down' }}" {% if not current_user %}disabled{% endif %}>👎 {{ rating_counts.down }}</button>
+        </form>
+        {% if not current_user %}<span class="hint">Pick a user above to rate</span>{% endif %}
+      </div>
+      {% else %}
+      <p>Nothing has played yet.</p>
+      {% endif %}
+
+      <div class="player">
+        <button class="play-pause" id="play-pause" aria-label="Play">▶</button>
+        <span class="time" id="time">0:00 / Live</span>
+        <div class="volume">
+          🔊
+          <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
+        </div>
+      </div>
+      <p class="unsupported" id="unsupported" hidden>Your browser can't play this stream.</p>
+    </div>
+  </main>
+
+  <div class="previous">
+    <div class="previous-inner">
+      <h3>Previous tracks:</h3>
+      <ul>
+        {% for track in previous_tracks %}
+        <li>{{ track["artist"] }}: <span class="title">{{ track["title"] }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <footer>
+    <p class="tagline">Ad-free · data-free · subscription-free — kick back and enjoy the crystal-clear audio.</p>
+    <p>{{ tech_stack }}</p>
+  </footer>
+
+  <audio id="audio-player"></audio>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+  <script>
+    const STREAM_URL = {{ stream_url | tojson }};
+    const NOW_PLAYING_ID = {{ (now_playing["id"] if now_playing else none) | tojson }};
+
+    const audio = document.getElementById("audio-player");
+    const playPauseBtn = document.getElementById("play-pause");
+    const timeEl = document.getElementById("time");
+    const volumeSlider = document.getElementById("volume");
+    const unsupportedEl = document.getElementById("unsupported");
+
+    let started = false;
+
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60).toString().padStart(2, "0");
+      return `${m}:${s}`;
+    }
+
+    function startStream() {
+      if (audio.canPlayType("application/vnd.apple.mpegurl")) {
+        audio.src = STREAM_URL;
+      } else if (window.Hls && Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(STREAM_URL);
+        hls.attachMedia(audio);
+      } else {
+        unsupportedEl.hidden = false;
+        return false;
+      }
+      return true;
+    }
+
+    playPauseBtn.addEventListener("click", () => {
+      if (!started) {
+        if (!startStream()) return;
+        started = true;
+      }
+      if (audio.paused) {
+        audio.play();
+      } else {
+        audio.pause();
+      }
+    });
+
+    audio.addEventListener("play", () => {
+      playPauseBtn.textContent = "⏸";
+      playPauseBtn.setAttribute("aria-label", "Pause");
+      if (NOW_PLAYING_ID !== null) {
+        fetch(`/tracks/${NOW_PLAYING_ID}/play`, { method: "POST", keepalive: true }).catch(() => {});
+      }
+    });
+    audio.addEventListener("pause", () => {
+      playPauseBtn.textContent = "▶";
+      playPauseBtn.setAttribute("aria-label", "Play");
+    });
+    audio.addEventListener("timeupdate", () => {
+      timeEl.textContent = `${formatTime(audio.currentTime)} / Live`;
+    });
+
+    volumeSlider.addEventListener("input", () => {
+      audio.volume = parseFloat(volumeSlider.value);
+    });
+    audio.volume = parseFloat(volumeSlider.value);
+  </script>
 </body>
 </html>
