@@ -227,15 +227,15 @@
     </div>
     <div class="now-playing">
       {% if now_playing %}
-      <h2>{{ now_playing["artist"] }}</h2>
-      <h3>{{ now_playing["title"] }}</h3>
-      {% if now_playing["album"] %}<p class="album">{{ now_playing["album"] }}</p>{% endif %}
-      <p class="quality">
+      <h2 id="now-playing-artist">{{ now_playing["artist"] }}</h2>
+      <h3 id="now-playing-title">{{ now_playing["title"] }}</h3>
+      <p class="album" id="now-playing-album" {% if not now_playing["album"] %}hidden{% endif %}>{{ now_playing["album"] or "" }}</p>
+      <p class="quality" id="now-playing-quality">
         {% if now_playing["source_quality"] %}Source quality: {{ now_playing["source_quality"] }}<br>{% endif %}
         {% if now_playing["stream_quality"] %}Stream quality: {{ now_playing["stream_quality"] }}{% endif %}
       </p>
 
-      <div class="rating">
+      <div class="rating" id="rating-section">
         <span>Rate this track:</span>
         <form method="post" action="{{ url_for('rate_track', track_id=now_playing['id']) }}">
           <button type="submit" name="direction" value="up"
@@ -275,7 +275,7 @@
   <div class="previous">
     <div class="previous-inner">
       <h3>Previous tracks:</h3>
-      <ul>
+      <ul id="previous-tracks-list">
         {% for track in previous_tracks %}
         <li>{{ track["artist"] }}: <span class="title">{{ track["title"] }}</span></li>
         {% endfor %}
@@ -304,6 +304,18 @@
     const volumeContainer = document.querySelector(".player .volume");
     const unsupportedEl = document.getElementById("unsupported");
     const streamStatusEl = document.getElementById("stream-status");
+    const albumArtEl = document.getElementById("album-art");
+    const nowPlayingArtistEl = document.getElementById("now-playing-artist");
+    const nowPlayingTitleEl = document.getElementById("now-playing-title");
+    const nowPlayingAlbumEl = document.getElementById("now-playing-album");
+    const nowPlayingQualityEl = document.getElementById("now-playing-quality");
+    const ratingSectionEl = document.getElementById("rating-section");
+    const previousListEl = document.getElementById("previous-tracks-list");
+
+    const PLACEHOLDER_ART_URL = {{ url_for('static', filename='album_art/placeholder.svg') | tojson }};
+    const METADATA_URL = new URL(STREAM_URL).origin + "/metadatav2.json";
+    const METADATA_POLL_MS = 60000;
+    let metadataPollTimer = null;
 
     let started = false;
     let hls = null;
@@ -328,6 +340,81 @@
     function showStatus(message) {
       streamStatusEl.textContent = message;
       streamStatusEl.hidden = !message;
+    }
+
+    function formatLiveQuality(meta) {
+      const parts = [];
+      if (meta.bit_depth) parts.push(`${meta.bit_depth}-bit`);
+      if (meta.sample_rate) parts.push(`${(meta.sample_rate / 1000).toFixed(1)}kHz`);
+      return parts.length ? `Stream quality: ${parts.join(" ")}` : "";
+    }
+
+    function renderPreviousTracks(meta) {
+      if (!previousListEl) return;
+      const entries = [];
+      for (let i = 1; i <= 5; i++) {
+        const artist = meta[`prev_artist_${i}`];
+        const title = meta[`prev_title_${i}`];
+        if (artist || title) entries.push({ artist, title });
+      }
+      if (!entries.length) return;
+      previousListEl.innerHTML = "";
+      entries.forEach(({ artist, title }) => {
+        const li = document.createElement("li");
+        li.append(`${artist}: `);
+        const titleSpan = document.createElement("span");
+        titleSpan.className = "title";
+        titleSpan.textContent = title;
+        li.append(titleSpan);
+        previousListEl.appendChild(li);
+      });
+    }
+
+    // The live station's real "now playing" (this metadata feed) is
+    // completely independent of the app's seeded demo tracks table, so once
+    // we have a real reading we replace the displayed metadata with it.
+    // There's no DB row (and no cover art) for a live-polled track, so the
+    // rating UI is hidden and the art resets to the generic placeholder
+    // rather than showing a stale/mismatched rating control or cover.
+    function applyNowPlayingMetadata(meta) {
+      if (nowPlayingArtistEl) nowPlayingArtistEl.textContent = meta.artist || "";
+      if (nowPlayingTitleEl) nowPlayingTitleEl.textContent = meta.title || "";
+      if (nowPlayingAlbumEl) {
+        nowPlayingAlbumEl.textContent = meta.album || "";
+        nowPlayingAlbumEl.hidden = !meta.album;
+      }
+      if (nowPlayingQualityEl) {
+        const quality = formatLiveQuality(meta);
+        nowPlayingQualityEl.textContent = quality;
+        nowPlayingQualityEl.hidden = !quality;
+      }
+      if (ratingSectionEl) ratingSectionEl.hidden = true;
+      if (albumArtEl) {
+        albumArtEl.src = PLACEHOLDER_ART_URL;
+        albumArtEl.alt = meta.title ? `Album art for ${meta.title}` : "Radio Calico";
+      }
+      renderPreviousTracks(meta);
+    }
+
+    function fetchNowPlayingMetadata() {
+      fetch(METADATA_URL, { cache: "no-store" })
+        .then((response) => (response.ok ? response.json() : Promise.reject()))
+        .then(applyNowPlayingMetadata)
+        .catch(() => {});
+    }
+
+    function startMetadataPolling() {
+      fetchNowPlayingMetadata();
+      if (!metadataPollTimer) {
+        metadataPollTimer = setInterval(fetchNowPlayingMetadata, METADATA_POLL_MS);
+      }
+    }
+
+    function stopMetadataPolling() {
+      if (metadataPollTimer) {
+        clearInterval(metadataPollTimer);
+        metadataPollTimer = null;
+      }
     }
 
     function destroyHls() {
@@ -451,10 +538,12 @@
       if (NOW_PLAYING_ID !== null) {
         fetch(`/tracks/${NOW_PLAYING_ID}/play`, { method: "POST", keepalive: true }).catch(() => {});
       }
+      startMetadataPolling();
     });
     audio.addEventListener("pause", () => {
       playPauseBtn.textContent = "▶";
       playPauseBtn.setAttribute("aria-label", "Play");
+      stopMetadataPolling();
     });
     audio.addEventListener("playing", () => {
       showStatus("");
