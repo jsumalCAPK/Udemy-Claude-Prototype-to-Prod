@@ -64,11 +64,14 @@
       aspect-ratio: 1;
       background: var(--mint);
       border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--forest);
-      font-size: 0.875rem;
+      overflow: hidden;
+    }
+    .art img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 8px;
+      display: block;
     }
     .now-playing h2 { color: var(--forest); font-size: 2.25rem; font-weight: 600; margin-bottom: 8px; }
     .now-playing h3 { color: var(--forest); font-size: 1.5rem; font-weight: 500; margin-bottom: 16px; }
@@ -89,24 +92,80 @@
       border-radius: 8px;
       padding: 12px 16px;
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 16px;
       color: var(--white);
+    }
+    .player .seek-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+    }
+    .player .seek-row input[type="range"] { flex: 1; }
+    .player .controls-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      width: 100%;
     }
     .player button.play-pause {
       background: var(--mint); color: var(--forest); border: none; border-radius: 50%;
       width: 40px; height: 40px; min-width: 40px; cursor: pointer; font-size: 1rem;
     }
     .player .time { font-size: 0.875rem; white-space: nowrap; }
-    .player .volume { display: flex; align-items: center; gap: 8px; flex: 1; }
+    .live-label {
+      font-size: 0.75rem;
+      color: var(--mint);
+      cursor: pointer;
+      white-space: nowrap;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .stream-status { font-size: 0.8125rem; color: var(--orange); white-space: nowrap; }
     .player input[type="range"] {
-      -webkit-appearance: none; appearance: none; flex: 1; height: 4px; background: #555; border-radius: 2px;
+      -webkit-appearance: none; appearance: none; height: 4px; background: #555; border-radius: 2px;
     }
     .player input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none; appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--teal); cursor: pointer;
     }
     .player input[type="range"]::-moz-range-thumb {
       width: 14px; height: 14px; border-radius: 50%; background: var(--teal); border: none; cursor: pointer;
+    }
+
+    .player .volume { position: relative; margin-left: auto; }
+    .player .volume-icon {
+      background: none; border: none; color: var(--white); cursor: pointer;
+      width: 40px; height: 40px; min-width: 40px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+    }
+    .player .volume-icon:hover,
+    .player .volume-icon:focus-visible { background: rgba(255, 255, 255, 0.12); }
+    .player .volume-popup {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--charcoal);
+      border-radius: 8px;
+      padding: 12px 10px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    }
+    .player .volume:hover .volume-popup,
+    .player .volume:focus-within .volume-popup,
+    .player .volume.open .volume-popup {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .player .volume-popup input[type="range"] {
+      writing-mode: vertical-lr;
+      direction: rtl;
+      width: 6px;
+      height: 90px;
     }
     .unsupported { color: var(--orange); font-size: 0.8125rem; margin-top: 8px; }
 
@@ -159,7 +218,13 @@
   </div>
 
   <main>
-    <div class="art">Album Art</div>
+    <div class="art">
+      <img
+        id="album-art"
+        src="{{ now_playing['album_art_url'] if now_playing and now_playing['album_art_url'] else url_for('static', filename='album_art/placeholder.svg') }}"
+        alt="{{ 'Album art for ' ~ now_playing['title'] if now_playing else 'Radio Calico' }}"
+        onerror="this.onerror=null; this.src='{{ url_for('static', filename='album_art/placeholder.svg') }}';">
+    </div>
     <div class="now-playing">
       {% if now_playing %}
       <h2>{{ now_playing["artist"] }}</h2>
@@ -187,11 +252,20 @@
       {% endif %}
 
       <div class="player">
-        <button class="play-pause" id="play-pause" aria-label="Play">▶</button>
-        <span class="time" id="time">0:00 / Live</span>
-        <div class="volume">
-          🔊
-          <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
+        <div class="seek-row">
+          <input type="range" id="seek" min="0" max="1" step="0.001" value="1" aria-label="Rewind within live stream">
+          <span class="live-label" id="live-label">● Live</span>
+        </div>
+        <div class="controls-row">
+          <button class="play-pause" id="play-pause" aria-label="Play">▶</button>
+          <span class="time" id="time">0:00 / Live</span>
+          <span class="stream-status" id="stream-status" hidden></span>
+          <div class="volume">
+            <button type="button" class="volume-icon" id="volume-icon" aria-label="Volume" aria-expanded="false">🔊</button>
+            <div class="volume-popup">
+              <input type="range" id="volume" min="0" max="1" step="0.01" value="1" aria-label="Volume level">
+            </div>
+          </div>
         </div>
       </div>
       <p class="unsupported" id="unsupported" hidden>Your browser can't play this stream.</p>
@@ -223,30 +297,141 @@
     const audio = document.getElementById("audio-player");
     const playPauseBtn = document.getElementById("play-pause");
     const timeEl = document.getElementById("time");
+    const seekSlider = document.getElementById("seek");
+    const liveLabel = document.getElementById("live-label");
     const volumeSlider = document.getElementById("volume");
+    const volumeIcon = document.getElementById("volume-icon");
+    const volumeContainer = document.querySelector(".player .volume");
     const unsupportedEl = document.getElementById("unsupported");
+    const streamStatusEl = document.getElementById("stream-status");
 
     let started = false;
+    let hls = null;
+    let isSeeking = false;
+    let rebuildAttempts = 0;
+    let mediaErrorRecoveries = 0;
+    let lastProgressTime = -1;
+    let lastProgressAt = Date.now();
+    const MAX_REBUILD_ATTEMPTS = 3;
+    const MAX_MEDIA_ERROR_RECOVERIES = 2;
+    const LIVE_EDGE_THRESHOLD = 2;
+    const STALL_WATCHDOG_MS = 6000;
 
     function formatTime(seconds) {
-      const m = Math.floor(seconds / 60);
-      const s = Math.floor(seconds % 60).toString().padStart(2, "0");
-      return `${m}:${s}`;
+      const sign = seconds < 0 ? "-" : "";
+      const abs = Math.abs(seconds);
+      const m = Math.floor(abs / 60);
+      const s = Math.floor(abs % 60).toString().padStart(2, "0");
+      return `${sign}${m}:${s}`;
+    }
+
+    function showStatus(message) {
+      streamStatusEl.textContent = message;
+      streamStatusEl.hidden = !message;
+    }
+
+    function destroyHls() {
+      if (hls) {
+        hls.destroy();
+        hls = null;
+      }
     }
 
     function startStream() {
-      if (audio.canPlayType("application/vnd.apple.mpegurl")) {
-        audio.src = STREAM_URL;
-      } else if (window.Hls && Hls.isSupported()) {
-        const hls = new Hls();
+      destroyHls();
+      lastProgressAt = Date.now();
+      // Prefer hls.js whenever it's actually supported: some non-Safari
+      // browsers/OS media stacks (observed on Windows Edge/Chromium) report
+      // "maybe" for canPlayType("application/vnd.apple.mpegurl") without truly
+      // handling this stream's multi-variant live playlist, silently stalling
+      // playback a few seconds in. hls.js gives us a real MSE pipeline and the
+      // error-recovery/level-locking below, so only fall back to the native
+      // <audio src> path (Safari's real native HLS) when hls.js can't run at all.
+      if (window.Hls && Hls.isSupported()) {
+        hls = new Hls({
+          manifestLoadingMaxRetry: 4,
+          manifestLoadingRetryDelay: 1000,
+          fragLoadingMaxRetry: 6,
+          fragLoadingRetryDelay: 1000,
+        });
+        hls.on(Hls.Events.ERROR, (event, data) => handleHlsError(data));
+        // This stream's master playlist offers variants with incompatible
+        // containers: a FLAC-in-fMP4 rendition (downloads fine but isn't
+        // actually decodable via this browser's MSE) alongside an AAC/MPEG-TS
+        // one (broadly supported). Left on auto, hls.js's ABR logic switches
+        // levels shortly after playback starts once it has bandwidth samples,
+        // and that switch — on top of the FLAC level never truly playing —
+        // silently stalls MSE. Lock to a non-FLAC level so no switch or
+        // unplayable-codec attempt ever happens.
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          const playableLevel = hls.levels.findIndex(
+            (level) => !/flac/i.test(level.audioCodec || level.codecs || "")
+          );
+          if (playableLevel !== -1) {
+            hls.currentLevel = playableLevel;
+          }
+        });
         hls.loadSource(STREAM_URL);
         hls.attachMedia(audio);
+      } else if (audio.canPlayType("application/vnd.apple.mpegurl")) {
+        audio.src = STREAM_URL;
       } else {
         unsupportedEl.hidden = false;
         return false;
       }
       return true;
     }
+
+    function handleHlsError(data) {
+      if (!data.fatal) {
+        return;
+      }
+      switch (data.type) {
+        case Hls.ErrorTypes.NETWORK_ERROR:
+          showStatus("Reconnecting…");
+          hls.startLoad();
+          break;
+        case Hls.ErrorTypes.MEDIA_ERROR:
+          mediaErrorRecoveries += 1;
+          if (mediaErrorRecoveries <= MAX_MEDIA_ERROR_RECOVERIES) {
+            showStatus("Reconnecting…");
+            hls.recoverMediaError();
+          } else {
+            rebuildStream();
+          }
+          break;
+        default:
+          rebuildStream();
+          break;
+      }
+    }
+
+    function rebuildStream() {
+      rebuildAttempts += 1;
+      lastProgressAt = Date.now();
+      if (rebuildAttempts > MAX_REBUILD_ATTEMPTS) {
+        showStatus("Stream unavailable, try again later.");
+        return;
+      }
+      showStatus("Reconnecting…");
+      mediaErrorRecoveries = 0;
+      setTimeout(() => {
+        if (startStream()) {
+          audio.play().catch(() => {});
+        }
+      }, 1500);
+    }
+
+    // Some stalls (e.g. a live rendition switch that silently stops feeding the
+    // buffer) never raise a fatal hls.js error or an `error`/`stalled` event, so
+    // currentTime simply freezes with no other signal. This watchdog catches
+    // that case directly by noticing a lack of playback progress.
+    setInterval(() => {
+      if (!started || audio.paused) return;
+      if (Date.now() - lastProgressAt > STALL_WATCHDOG_MS) {
+        rebuildStream();
+      }
+    }, 2000);
 
     playPauseBtn.addEventListener("click", () => {
       if (!started) {
@@ -271,14 +456,93 @@
       playPauseBtn.textContent = "▶";
       playPauseBtn.setAttribute("aria-label", "Play");
     });
+    audio.addEventListener("playing", () => {
+      showStatus("");
+      rebuildAttempts = 0;
+      mediaErrorRecoveries = 0;
+    });
+    audio.addEventListener("waiting", () => {
+      showStatus("Buffering…");
+    });
+
+    // Native HLS path (e.g. Safari) has no hls.js instance, so it needs its own
+    // recovery — otherwise a network/decode error there just stops playback silently.
+    audio.addEventListener("error", () => {
+      if (hls) return;
+      rebuildAttempts += 1;
+      if (rebuildAttempts > MAX_REBUILD_ATTEMPTS) {
+        showStatus("Stream unavailable, try again later.");
+        return;
+      }
+      showStatus("Reconnecting…");
+      setTimeout(() => {
+        audio.src = STREAM_URL;
+        audio.play().catch(() => {});
+      }, 1500);
+    });
+
     audio.addEventListener("timeupdate", () => {
-      timeEl.textContent = `${formatTime(audio.currentTime)} / Live`;
+      if (audio.currentTime !== lastProgressTime) {
+        lastProgressTime = audio.currentTime;
+        lastProgressAt = Date.now();
+      }
+      if (!audio.seekable || audio.seekable.length === 0) {
+        timeEl.textContent = `${formatTime(audio.currentTime)} / Live`;
+        return;
+      }
+      const start = audio.seekable.start(0);
+      const end = audio.seekable.end(0);
+      const behindLive = end - audio.currentTime;
+
+      if (!isSeeking) {
+        const span = end - start;
+        seekSlider.value = span > 0 ? (audio.currentTime - start) / span : 1;
+      }
+
+      if (behindLive <= LIVE_EDGE_THRESHOLD) {
+        timeEl.textContent = "Live";
+      } else {
+        timeEl.textContent = `${formatTime(-behindLive)} / Live`;
+      }
+    });
+
+    ["pointerdown", "input"].forEach((evt) => {
+      seekSlider.addEventListener(evt, () => {
+        isSeeking = true;
+      });
+    });
+    seekSlider.addEventListener("change", () => {
+      if (audio.seekable && audio.seekable.length > 0) {
+        const start = audio.seekable.start(0);
+        const end = audio.seekable.end(0);
+        audio.currentTime = start + parseFloat(seekSlider.value) * (end - start);
+      }
+      isSeeking = false;
+    });
+
+    liveLabel.addEventListener("click", () => {
+      if (audio.seekable && audio.seekable.length > 0) {
+        audio.currentTime = Math.max(0, audio.seekable.end(0) - 0.5);
+        seekSlider.value = 1;
+      }
     });
 
     volumeSlider.addEventListener("input", () => {
       audio.volume = parseFloat(volumeSlider.value);
     });
     audio.volume = parseFloat(volumeSlider.value);
+
+    // Hover/focus-within CSS handles mouse & keyboard; touch devices get a tap toggle here.
+    volumeIcon.addEventListener("click", () => {
+      const isOpen = volumeContainer.classList.toggle("open");
+      volumeIcon.setAttribute("aria-expanded", String(isOpen));
+    });
+    document.addEventListener("click", (event) => {
+      if (!volumeContainer.contains(event.target)) {
+        volumeContainer.classList.remove("open");
+        volumeIcon.setAttribute("aria-expanded", "false");
+      }
+    });
   </script>
 </body>
 </html>

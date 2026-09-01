@@ -26,12 +26,33 @@ SEED_TRACKS = [
         "album": "Flashdance (Original Motion Picture Soundtrack)",
         "source_quality": "16-bit 44.1kHz",
         "stream_quality": "48kHz FLAC / HLS Lossless",
+        "album_art_url": "/static/album_art/shandi-sinnamon.svg",
     },
-    {"artist": "TLC", "title": "Ain't 2 Proud 2 Beg"},
-    {"artist": "The Raconteurs", "title": "Steady, As She Goes"},
-    {"artist": "Mick Jagger", "title": "Just Another Night"},
-    {"artist": "Beyoncé", "title": "Irreplaceable (Album Version)"},
-    {"artist": "Etta James", "title": "I'd Rather Go Blind"},
+    {
+        "artist": "TLC",
+        "title": "Ain't 2 Proud 2 Beg",
+        "album_art_url": "/static/album_art/tlc.svg",
+    },
+    {
+        "artist": "The Raconteurs",
+        "title": "Steady, As She Goes",
+        "album_art_url": "/static/album_art/the-raconteurs.svg",
+    },
+    {
+        "artist": "Mick Jagger",
+        "title": "Just Another Night",
+        "album_art_url": "/static/album_art/mick-jagger.svg",
+    },
+    {
+        "artist": "Beyoncé",
+        "title": "Irreplaceable (Album Version)",
+        "album_art_url": "/static/album_art/beyonce.svg",
+    },
+    {
+        "artist": "Etta James",
+        "title": "I'd Rather Go Blind",
+        "album_art_url": "/static/album_art/etta-james.svg",
+    },
 ]
 
 
@@ -99,10 +120,14 @@ def init_db():
             album TEXT,
             source_quality TEXT,
             stream_quality TEXT,
+            album_art_url TEXT,
             played_at TEXT NOT NULL
         )
         """
     )
+    existing_columns = {row["name"] for row in db.execute("PRAGMA table_info(tracks)")}
+    if "album_art_url" not in existing_columns:
+        db.execute("ALTER TABLE tracks ADD COLUMN album_art_url TEXT")
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS track_ratings (
@@ -132,8 +157,8 @@ def init_db():
         for offset, track in enumerate(SEED_TRACKS):
             db.execute(
                 """
-                INSERT INTO tracks (artist, title, album, source_quality, stream_quality, played_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO tracks (artist, title, album, source_quality, stream_quality, album_art_url, played_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     track["artist"],
@@ -141,6 +166,7 @@ def init_db():
                     track.get("album"),
                     track.get("source_quality"),
                     track.get("stream_quality"),
+                    track.get("album_art_url"),
                     (now - timedelta(minutes=offset)).isoformat(),
                 ),
             )
