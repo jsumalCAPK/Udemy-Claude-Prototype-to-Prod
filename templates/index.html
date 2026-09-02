@@ -313,9 +313,12 @@
     const previousListEl = document.getElementById("previous-tracks-list");
 
     const PLACEHOLDER_ART_URL = {{ url_for('static', filename='album_art/placeholder.svg') | tojson }};
-    const METADATA_URL = new URL(STREAM_URL).origin + "/metadatav2.json";
+    const STREAM_ORIGIN = new URL(STREAM_URL).origin;
+    const METADATA_URL = STREAM_ORIGIN + "/metadatav2.json";
+    const COVER_ART_URL = STREAM_ORIGIN + "/cover.jpg";
     const METADATA_POLL_MS = 10000;
     let metadataPollTimer = null;
+    let lastLiveTrackKey = null;
 
     let started = false;
     let hls = null;
@@ -373,9 +376,8 @@
     // The live station's real "now playing" (this metadata feed) is
     // completely independent of the app's seeded demo tracks table, so once
     // we have a real reading we replace the displayed metadata with it.
-    // There's no DB row (and no cover art) for a live-polled track, so the
-    // rating UI is hidden and the art resets to the generic placeholder
-    // rather than showing a stale/mismatched rating control or cover.
+    // There's no DB row for a live-polled track, so the rating UI is hidden
+    // rather than showing a control that would rate the wrong thing.
     function applyNowPlayingMetadata(meta) {
       if (nowPlayingArtistEl) nowPlayingArtistEl.textContent = meta.artist || "";
       if (nowPlayingTitleEl) nowPlayingTitleEl.textContent = meta.title || "";
@@ -389,10 +391,18 @@
         nowPlayingQualityEl.hidden = !quality;
       }
       if (ratingSectionEl) ratingSectionEl.hidden = true;
-      if (albumArtEl) {
-        albumArtEl.src = PLACEHOLDER_ART_URL;
+
+      // cover.jpg is served under a fixed filename with no version/track
+      // identifier, and gets cached by both the browser and CloudFront, so
+      // only swap it (with a cache-busting query param) when the track
+      // itself has actually changed rather than on every poll tick.
+      const trackKey = `${meta.artist || ""}|${meta.title || ""}`;
+      if (albumArtEl && trackKey !== lastLiveTrackKey) {
+        lastLiveTrackKey = trackKey;
+        albumArtEl.src = `${COVER_ART_URL}?t=${Date.now()}`;
         albumArtEl.alt = meta.title ? `Album art for ${meta.title}` : "Radio Calico";
       }
+
       renderPreviousTracks(meta);
     }
 
