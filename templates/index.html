@@ -314,7 +314,7 @@
 
     const PLACEHOLDER_ART_URL = {{ url_for('static', filename='album_art/placeholder.svg') | tojson }};
     const METADATA_URL = new URL(STREAM_URL).origin + "/metadatav2.json";
-    const METADATA_POLL_MS = 60000;
+    const METADATA_POLL_MS = 10000;
     let metadataPollTimer = null;
 
     let started = false;
