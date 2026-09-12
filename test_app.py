@@ -66,7 +66,7 @@ def test_add_user_appears_in_demo_list(client):
         "/users", data={"name": "Ada Lovelace", "email": "ada@example.com"}
     )
     assert response.status_code == 302
-    assert response.headers["Location"] == "/demo"
+    assert response.headers["Location"] == "/login"
 
     body = client.get("/demo").get_data(as_text=True)
     assert "Ada Lovelace" in body
@@ -79,6 +79,37 @@ def test_add_user_requires_name_and_email(client):
     body = client.get("/demo").get_data(as_text=True)
     assert "no-name@example.com" not in body
     assert "No users yet." in body
+
+
+def test_add_user_failure_flashes_error_on_login_page(client):
+    response = client.post(
+        "/users", data={"name": "", "email": "no-name@example.com"}, follow_redirects=True
+    )
+    assert response.status_code == 200
+    assert "Name and email are required" in response.get_data(as_text=True)
+
+
+def test_login_page_lists_users(client):
+    add_user(client, "Ada Lovelace", "ada@example.com")
+    body = client.get("/login").get_data(as_text=True)
+    assert "Ada Lovelace" in body
+    assert "ada@example.com" in body
+
+
+def test_login_sets_current_user_and_logout_clears_it(client, db_path):
+    add_user(client, "Ada Lovelace", "ada@example.com")
+    become(client, db_path, "ada@example.com")
+
+    body = client.get("/").get_data(as_text=True)
+    assert "Listening as" in body
+    assert "Ada Lovelace" in body
+
+    response = client.post("/logout")
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/login"
+
+    body = client.get("/").get_data(as_text=True)
+    assert "No user logged in" in body
 
 
 def test_index_shows_station_and_stream(client):

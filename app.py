@@ -7,6 +7,7 @@ from importlib.metadata import version as pkg_version
 
 from flask import (
     Flask,
+    flash,
     g,
     jsonify,
     redirect,
@@ -207,7 +208,25 @@ def add_user():
             (name, email, datetime.now(timezone.utc).isoformat()),
         )
         db.commit()
-    return redirect(url_for("demo"))
+    else:
+        flash("Name and email are required to add a user.", "error")
+    return redirect(url_for("login"))
+
+
+@app.route("/login")
+def login():
+    init_db()
+    db = get_db()
+    users = db.execute(
+        "SELECT id, name, email FROM users ORDER BY name"
+    ).fetchall()
+    return render_template(
+        "login.html",
+        repo_name=REPO_NAME,
+        tech_stack=TECH_STACK,
+        users=users,
+        current_user=current_user(),
+    )
 
 
 @app.route("/")
@@ -238,8 +257,6 @@ def index():
             ).fetchone()
             user_rating = existing["rating"] if existing else None
 
-    users = db.execute("SELECT id, name FROM users ORDER BY name").fetchall()
-
     return render_template(
         "index.html",
         repo_name=REPO_NAME,
@@ -249,7 +266,6 @@ def index():
         previous_tracks=previous_tracks,
         rating_counts=rating_counts,
         user_rating=user_rating,
-        users=users,
         current_user=current_user(),
     )
 
@@ -259,7 +275,13 @@ def whoami():
     user_id = request.form.get("user_id", "").strip()
     if user_id:
         session["user_id"] = int(user_id)
-    return redirect(url_for("index"))
+    return redirect(url_for("login"))
+
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.pop("user_id", None)
+    return redirect(url_for("login"))
 
 
 @app.route("/tracks/<int:track_id>/rate", methods=["POST"])

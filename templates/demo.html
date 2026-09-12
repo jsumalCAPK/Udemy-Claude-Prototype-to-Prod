@@ -19,12 +19,6 @@
   <h1>{{ repo_name }}</h1>
   <p class="caption">{{ tech_stack }}</p>
 
-  <form method="post" action="{{ url_for('add_user') }}">
-    <input type="text" name="name" placeholder="Name" required>
-    <input type="email" name="email" placeholder="Email" required>
-    <button type="submit">Add User</button>
-  </form>
-
   {% if users %}
   <table>
     <thead>

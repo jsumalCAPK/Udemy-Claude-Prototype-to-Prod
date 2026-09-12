@@ -41,12 +41,7 @@
       text-align: center;
       font-size: 0.875rem;
     }
-    .identity form { display: inline-flex; gap: 8px; align-items: center; }
-    .identity select { padding: 0.4rem; border: 1px solid #CCC; border-radius: 4px; }
-    .identity button {
-      background: var(--forest); color: var(--white); border: none; border-radius: 4px;
-      padding: 0.4rem 0.9rem; cursor: pointer; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em;
-    }
+    .identity a { color: var(--forest); }
 
     main {
       max-width: 1200px;
@@ -86,6 +81,7 @@
     .rating button.selected { background: var(--mint); }
     .rating button:disabled { cursor: not-allowed; opacity: 0.4; }
     .rating .hint { font-size: 0.8125rem; color: #666; }
+    .rating .hint a { color: var(--forest); }
 
     .player {
       background: var(--charcoal);
@@ -194,27 +190,11 @@
 
   <div class="identity">
     {% if current_user %}
-      Listening as <strong>{{ current_user["name"] }}</strong> —
-      <form method="post" action="{{ url_for('whoami') }}" style="display: inline">
-        <select name="user_id" onchange="this.form.submit()">
-          {% for u in users %}
-          <option value="{{ u['id'] }}" {% if u['id'] == current_user['id'] %}selected{% endif %}>{{ u["name"] }}</option>
-          {% endfor %}
-        </select>
-      </form>
-    {% elif users %}
-      <form method="post" action="{{ url_for('whoami') }}">
-        Listening as:
-        <select name="user_id">
-          {% for u in users %}
-          <option value="{{ u['id'] }}">{{ u["name"] }}</option>
-          {% endfor %}
-        </select>
-        <button type="submit">That's Me</button>
-      </form>
+      Listening as <strong>{{ current_user["name"] }}</strong>
     {% else %}
-      No users yet — <a href="{{ url_for('demo') }}">add one on the demo page</a> to rate tracks.
+      No user logged in
     {% endif %}
+    — <a href="{{ url_for('login') }}">test login</a>
   </div>
 
   <main>
@@ -245,7 +225,7 @@
           <button type="submit" name="direction" value="down"
             class="{{ 'selected' if user_rating == 'down' }}" {% if not current_user %}disabled{% endif %}>👎 {{ rating_counts.down }}</button>
         </form>
-        {% if not current_user %}<span class="hint">Pick a user above to rate</span>{% endif %}
+        {% if not current_user %}<span class="hint"><a href="{{ url_for('login') }}">Log in</a> to rate</span>{% endif %}
       </div>
       {% else %}
       <p>Nothing has played yet.</p>
